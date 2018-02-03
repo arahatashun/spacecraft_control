@@ -8,13 +8,14 @@ const ωs = rpm2radpersec(17)
 const STEPNUM = 10000
 const STEP = 0.01
 
-q_initial = [1, 0, 0, 0]
-ωb = [0.1,ωs + 0.1, 0.0]
+q_initial = [1.0, 0.0, 0.0, 0.0]
+ωb = [0.1, ωs + 0.1, 0.0]
 
 function runge_kutta(f, t, x, step)
     #=　Fourth-order Runge-Kutta method.
 
     :param f: differential equation f(t,x)
+     Note: input output the same dimension list
     :param t: variable
     :param x: variable
     :param step: step time
@@ -24,7 +25,8 @@ function runge_kutta(f, t, x, step)
     k2 = f(t + step/2, x + step / 2 * k1)
     k3 = f(t + step/2, x + step / 2 * k2)
     k4 = f(t + step/2, x + step * k3)
-    return step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+    sum = step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+    return sum
 end
 
 function ω_differential(t, ω)
@@ -40,7 +42,7 @@ function ω_differential(t, ω)
     return [ωx, ωy, ωz]
 end
 
-function quaternion_differntial(t, qandω)
+function q_differential(t, qandω)
     #= differential equation of quaternion.
 
     :param t: time(not related)
@@ -54,28 +56,43 @@ function quaternion_differntial(t, qandω)
     ωx = qandω[5]
     ωy = qandω[6]
     ωz = qandω[7]
-    dq0 = 1/2(-q1 * ωx + -q2 * ωy - q3 * ωz)
-    dq1 = 1/2(q0 * ωx + -q3 * ωy + q2 * ωz)
-    dq2 = 1/2(q3 * ωx + q0 * ωy - q1 * ωz)
-    dq3 = 1/2(-q2 * ωx + q1 * ωy + q0 * ωz)
-    return [dq0, dq1, dq2, dq3, dq4]
+    dq0 = 1/2 * (-q1 * ωx + -q2 * ωy - q3 * ωz)
+    dq1 = 1/2 * (q0 * ωx + -q3 * ωy + q2 * ωz)
+    dq2 = 1/2 * (q3 * ωx + q0 * ωy - q1 * ωz)
+    dq3 = 1/2 * (-q2 * ωx + q1 * ωy + q0 * ωz)
+    return [dq0, dq1, dq2, dq3, 0.0, 0.0, 0.0]
 end
 
 function main()
     ω_list = Array{Float64, 2}(STEPNUM+2,3)
+    q_list = Array{Float64, 2}(STEPNUM+2,4)
     ω_list[1, :] = ωb'
+    q_list[1, :] = q_initial'
     ω_new = ωb
+    q_new = q_initial
     time = [0.0]
     for i in 0:STEPNUM
+        temp = copy(q_new)
+        append!(temp, ω_new)
+        q_new += runge_kutta(q_differential, i * STEP, temp, STEP)[1:4]
         ω_new += runge_kutta(ω_differential, i * STEP, ω_new, STEP)
         push!(time, (i+1) * STEP)
-        ω_list[i+2, :] = ω_new'
+        ω_list[i+2, :] = ω_new
+        q_list[i+2, :] = q_new
     end
     fig = figure()
     ax = fig[:add_subplot](111)
     ax[:plot](time, ω_list[:,1], label=L"$\omega_x$")
     ax[:plot](time, ω_list[:,2], label=L"$\omega_y$")
     ax[:plot](time, ω_list[:,3], label=L"$\omega_z$")
+    legend(loc = "best", fontsize=15)
+    PyPlot.plt[:show]()
+    fig = figure()
+    ax = fig[:add_subplot](111)
+    ax[:plot](time, q_list[:,1], label=L"$q_0$")
+    ax[:plot](time, q_list[:,2], label=L"$q_1$")
+    ax[:plot](time, q_list[:,3], label=L"$q_2$")
+    ax[:plot](time, q_list[:,4], label=L"$q_3$")
     legend(loc = "best", fontsize=15)
     PyPlot.plt[:show]()
 end
