@@ -15,7 +15,7 @@ function runge_kutta(f, t, x, step)
     #=　Fourth-order Runge-Kutta method.
 
     :param f: differential equation f(t,x)
-     Note: input output the same dimension list
+     Note: input output must be the same dimension list
     :param t: variable
     :param x: variable
     :param step: step time
@@ -63,6 +63,26 @@ function q_differential(t, qandω)
     return [dq0, dq1, dq2, dq3, 0.0, 0.0, 0.0]
 end
 
+function plot(time, ω, q)
+    fig = figure()
+    ax = fig[:add_subplot](111)
+    ax[:plot](time, ω[:,1], label=L"$\omega_x$")
+    ax[:plot](time, ω[:,2], label=L"$\omega_y$")
+    ax[:plot](time, ω[:,3], label=L"$\omega_z$")
+    ax[:set_xlim]([0, last(time)])
+    legend(loc = "best", fontsize=15)
+    PyPlot.plt[:show]()
+    fig = figure()
+    ax = fig[:add_subplot](111)
+    ax[:plot](time, q[:,1], label=L"$q_0$")
+    ax[:plot](time, q[:,2], label=L"$q_1$")
+    ax[:plot](time, q[:,3], label=L"$q_2$")
+    ax[:plot](time, q[:,4], label=L"$q_3$")
+    ax[:set_xlim]([0, last(time)])
+    legend(loc = "best", fontsize=15)
+    PyPlot.plt[:show]()
+end
+
 function main()
     ω_list = Array{Float64, 2}(STEPNUM+2,3)
     q_list = Array{Float64, 2}(STEPNUM+2,4)
@@ -80,21 +100,7 @@ function main()
         ω_list[i+2, :] = ω_new
         q_list[i+2, :] = q_new
     end
-    fig = figure()
-    ax = fig[:add_subplot](111)
-    ax[:plot](time, ω_list[:,1], label=L"$\omega_x$")
-    ax[:plot](time, ω_list[:,2], label=L"$\omega_y$")
-    ax[:plot](time, ω_list[:,3], label=L"$\omega_z$")
-    legend(loc = "best", fontsize=15)
-    PyPlot.plt[:show]()
-    fig = figure()
-    ax = fig[:add_subplot](111)
-    ax[:plot](time, q_list[:,1], label=L"$q_0$")
-    ax[:plot](time, q_list[:,2], label=L"$q_1$")
-    ax[:plot](time, q_list[:,3], label=L"$q_2$")
-    ax[:plot](time, q_list[:,4], label=L"$q_3$")
-    legend(loc = "best", fontsize=15)
-    PyPlot.plt[:show]()
+    plot(time, ω_list,q_list)
 end
 
 main()
