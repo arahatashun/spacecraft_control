@@ -74,31 +74,31 @@ function make_theoretical_answer()
     ω_list[1, :] = ωb'
     E = 0.5 * (Ix * ωb[1]^2 + Iy * ωb[2]^2 + Iz * ωb[3]^2)
     L2 = Ix^2 * ωb[1]^2 + Iy^2 * ωb[2]^2 + Iz^2 * ωb[3]^2
-    lambda = sqrt((L2 - 2E * Iy)*(Iz - Ix)/(Ix * Iy * Iz))
-    println((2E * Iz - L2))
-    println((L2 - 2E * Iy))
-    k2 = ((Ix - Iy)*(2E * Iz - L2))/((Iz - Ix)*(L2 - 2E * Iy))
-    println(k2)
+    lambda = sqrt((L2 - 2E * Iz)*(Iy - Ix)/(Ix * Iy * Iz))
+    k2 = ((Ix - Iz)*(2E * Iy - L2))/((Iy - Ix)*(L2 - 2E * Iz))
     k = sqrt(k2)
     #find  period T
-
+    period = 4 * Elliptic.K(k) / lambda
     # find t when omega_x = 0
+    STEPDIV = 1000
     t_prime = 0
     abs_omega_x = 100
-    for i in 0:STEPNUM
-        t = i * STEP
-        omega_x = sqrt((2E*Iz - L2)/(Ix * (Iz - Ix))) * Jacobi.sn(lambda * t, k^2)
-        if abs(omega_x) < abs_omega_x
-            println("mo")
-            abs_omega_x = abs(omega_x)
+    println("period", period)
+    for i in 0:STEPDIV
+        t = i * period/STEPDIV
+        omega_x = sqrt((2E*Iy - L2)/(Ix * (Iy - Ix))) * Jacobi.sn(lambda * t, k2)
+        println("omega_x,",omega_x)
+        if abs(omega_x-ωb[1]) < abs_omega_x
+            abs_omega_x = abs(omega_x-ωb[1])
             t_prime = t
         end
     end
+    println(t_prime)
     for i in 0:STEPNUM
-        t = i * STEP - t_prime
-        omega_x = sqrt((2E*Iz - L2)/(Ix * (Iz - Ix))) * Jacobi.sn(lambda * t, k^2)
-        omega_y = sqrt((2E*Iz - L2)/(Iy * (Iz - Iy))) * Jacobi.cn(lambda * t, k^2)
-        omega_z = sqrt((2E*Iy - L2)/(Iz * (Iy - Iz))) * Jacobi.dn(lambda * t, k^2)
+        t = i * STEP
+        omega_x = sqrt((2E*Iy - L2)/(Ix * (Iy - Ix))) * Jacobi.sn(lambda * (t + t_prime), k2)
+        omega_y = sqrt((2E*Iz - L2)/(Iy * (Iz - Iy))) * Jacobi.dn(lambda * (t + t_prime), k2)
+        omega_z = -sqrt((2E*Iy - L2)/(Iz * (Iy - Iz))) * Jacobi.cn(lambda * (t + t_prime), k2)
         ω_list[i+2, :] = [omega_x, omega_y, omega_z]
     end
     return ω_list
@@ -118,7 +118,7 @@ function plot(time, ω, q)
     # PyPlot.plt[:show]()
     PyPlot.plt[:savefig]("omega.pgf")
     =#
-    #=
+
     fig = figure()
     ax = fig[:add_subplot](111)
     ax[:plot](time, q[:,1], label=L"$q_0$")
@@ -129,9 +129,8 @@ function plot(time, ω, q)
     ax[:set_xlabel]("time [sec]")
     ax[:set_ylabel]("Quaternion")
     legend(loc = "best", fontsize=15)
-    PyPlot.plt[:show]()
     PyPlot.plt[:savefig]("quaternion.pgf")
-    =#
+
     fig = figure()
     theo = make_theoretical_answer()
     ax = fig[:add_subplot](311)
@@ -155,7 +154,7 @@ function plot(time, ω, q)
     ax[:set_xlabel]("time [sec]")
     ax[:set_ylabel](L"$\omega_z$")
     legend(loc = 1)
-    PyPlot.plt[:show]()
+    PyPlot.plt[:savefig]("theoretical.pgf")
 end
 
 function main()
@@ -175,6 +174,7 @@ function main()
         ω_list[i+2, :] = ω_new
         q_list[i+2, :] = q_new
     end
+    # writecsv("quaternion.csv",q_list)
     plot(time, ω_list,q_list)
 end
 
