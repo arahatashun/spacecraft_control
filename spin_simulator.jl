@@ -105,7 +105,7 @@ function make_theoretical_answer()
 end
 
 function plot(time, ω, q)
-    #=
+
     fig = figure()
     ax = fig[:add_subplot](111)
     ax[:plot](time, ω[:,1], label=L"$\omega_x$")
@@ -117,7 +117,7 @@ function plot(time, ω, q)
     legend(loc = "best", fontsize=15)
     # PyPlot.plt[:show]()
     PyPlot.plt[:savefig]("omega.pgf")
-    =#
+
 
     fig = figure()
     ax = fig[:add_subplot](111)
@@ -174,8 +174,8 @@ function main()
         ω_list[i+2, :] = ω_new
         q_list[i+2, :] = q_new
     end
-    # writecsv("quaternion.csv",q_list)
-    plot(time, ω_list,q_list)
+    writecsv("quaternion.csv",q_list)
+    # plot(time, ω_list,q_list)
 end
 
 main()
