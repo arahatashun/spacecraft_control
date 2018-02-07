@@ -83,17 +83,14 @@ function make_theoretical_answer()
     STEPDIV = 1000
     t_prime = 0
     abs_omega_x = 100
-    println("period", period)
     for i in 0:STEPDIV
         t = i * period/STEPDIV
         omega_x = sqrt((2E*Iy - L2)/(Ix * (Iy - Ix))) * Jacobi.sn(lambda * t, k2)
-        println("omega_x,",omega_x)
         if abs(omega_x-ωb[1]) < abs_omega_x
             abs_omega_x = abs(omega_x-ωb[1])
             t_prime = t
         end
     end
-    println(t_prime)
     for i in 0:STEPNUM
         t = i * STEP
         omega_x = sqrt((2E*Iy - L2)/(Ix * (Iy - Ix))) * Jacobi.sn(lambda * (t + t_prime), k2)
@@ -155,6 +152,7 @@ function plot(time, ω, q)
     ax[:set_ylabel](L"$\omega_z$")
     legend(loc = 1)
     PyPlot.plt[:savefig]("theoretical.pgf")
+    PyPlot.plt[:show]()
 end
 
 function main()
@@ -164,18 +162,18 @@ function main()
     q_list[1, :] = q_initial'
     ω_new = ωb
     q_new = q_initial
-    time = [0.0]
+    time = zeros(STEPNUM+2)
     for i in 0:STEPNUM
         temp = copy(q_new)
         append!(temp, ω_new)
         q_new += runge_kutta(q_differential, i * STEP, temp, STEP)[1:4]
         ω_new += runge_kutta(ω_differential, i * STEP, ω_new, STEP)
-        push!(time, (i+1) * STEP)
+        time[i+2] = (i+1) * STEP
         ω_list[i+2, :] = ω_new
         q_list[i+2, :] = q_new
     end
-    writecsv("quaternion.csv",q_list)
-    # plot(time, ω_list,q_list)
+    # writecsv("quaternion.csv",q_list)
+    plot(time, ω_list,q_list)
 end
 
 main()
