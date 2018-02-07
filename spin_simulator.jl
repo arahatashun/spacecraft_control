@@ -156,24 +156,17 @@ function plot(time, ω, q)
 end
 
 function main()
-    ω_list = Array{Float64, 2}(STEPNUM+2,3)
-    q_list = Array{Float64, 2}(STEPNUM+2,4)
-    ω_list[1, :] = ωb'
-    q_list[1, :] = q_initial'
-    ω_new = ωb
-    q_new = q_initial
+    x = Array{Float64, 2}(STEPNUM+2,7)
+    x[1, 5:7] = ωb'
+    x[1, 1:4] = q_initial'
     time = zeros(STEPNUM+2)
     for i in 0:STEPNUM
-        temp = copy(q_new)
-        append!(temp, ω_new)
-        q_new += runge_kutta(q_differential, i * STEP, temp, STEP)[1:4]
-        ω_new += runge_kutta(ω_differential, i * STEP, ω_new, STEP)
+        x[i+2, 1:4] = x[i+1, 1:4] + runge_kutta(q_differential, i * STEP, x[i+1,:], STEP)[1:4]
+        x[i+2, 5:7] = x[i+1, 5:7] + runge_kutta(ω_differential, i * STEP, x[i+1,5:7], STEP)
         time[i+2] = (i+1) * STEP
-        ω_list[i+2, :] = ω_new
-        q_list[i+2, :] = q_new
     end
     # writecsv("quaternion.csv",q_list)
-    plot(time, ω_list,q_list)
+    plot(time, x[:,5:7], x[:,1:4])
 end
 
-main()
+@time main()
