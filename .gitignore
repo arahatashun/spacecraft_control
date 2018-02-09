@@ -1,6 +1,7 @@
 .DS_Store
 .idea
 .pgf
+.gif
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
