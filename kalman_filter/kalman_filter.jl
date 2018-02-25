@@ -5,14 +5,14 @@ using PyPlot
 const Ix = 1.9
 const Iy = 1.6
 const Iz = 2.0
-rpm2radpersec(rpm) = rpm *2 * pi / 60
-const omega_s = rpm2radpersec(17)
+rpm2radpersec(rpm) = rpm *2 * π / 60
+const ω_s = rpm2radpersec(17)
 const STEPNUM = 10000
 const STEP = 0.01
 const q_std = 0.01
 const r_std = 0.01
 Quaternion_ini = [1.0; 0.0; 0.0; 0.0]
-omega_b = [0.1; omega_s + 0.1; 0.0]
+ω_b = [0.1; ω_s + 0.1; 0.0]
 B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
 Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
 R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
@@ -87,18 +87,18 @@ function differential_eq(x,noise::Int)
     q1 = x[2]
     q2 = x[3]
     q3 = x[4]
-    omega_x = x[5]
-    omega_y = x[6]
-    omega_z = x[7]
-    dq0 = 1/2 * (-q1 * omega_x + -q2 * omega_y - q3 * omega_z)
-    dq1 = 1/2 * (q0 * omega_x + -q3 * omega_y + q2 * omega_z)
-    dq2 = 1/2 * (q3 * omega_x + q0 * omega_y - q1 * omega_z)
-    dq3 = 1/2 * (-q2 * omega_x + q1 * omega_y + q0 * omega_z)
+    ω_x = x[5]
+    ω_y = x[6]
+    ω_z = x[7]
+    dq0 = 1/2 * (-q1 * ω_x + -q2 * ω_y - q3 * ω_z)
+    dq1 = 1/2 * (q0 * ω_x + -q3 * ω_y + q2 * ω_z)
+    dq2 = 1/2 * (q3 * ω_x + q0 * ω_y - q1 * ω_z)
+    dq3 = 1/2 * (-q2 * ω_x + q1 * ω_y + q0 * ω_z)
     norm = sqrt(dq0^2 + dq1^2 + dq2^2 + dq3^2)
-    new_omega_x = (Iy - Iz)/Ix * omega_y * omega_z + noise * rand_normal(0, q_std)/Ix
-    new_omega_y = (Iz - Ix)/Iy * omega_z * omega_x + noise * rand_normal(0, q_std)/Iy
-    new_omega_z = (Ix - Iy)/Iz * omega_x * omega_y + noise * rand_normal(0, q_std)/Iz
-    return [dq0/norm; dq1/norm; dq2/norm; dq3/norm; new_omega_x; new_omega_y; new_omega_z]
+    new_ω_x = (Iy - Iz)/Ix * ω_y * ω_z + noise * rand_normal(0, q_std)/Ix
+    new_ω_y = (Iz - Ix)/Iy * ω_z * ω_x + noise * rand_normal(0, q_std)/Iy
+    new_ω_z = (Ix - Iy)/Iz * ω_x * ω_y + noise * rand_normal(0, q_std)/Iz
+    return [dq0/norm; dq1/norm; dq2/norm; dq3/norm; new_ω_x; new_ω_y; new_ω_z]
 end
 
 function make_A(filter::Kalman_Filter)
@@ -107,16 +107,16 @@ function make_A(filter::Kalman_Filter)
     q1 = x[2]
     q2 = x[3]
     q3 = x[4]
-    omega_x = x[5]
-    omega_y = x[6]
-    omega_z = x[7]
-    return  [0 -1/2 * omega_x -1/2 * omega_y -1/2 * omega_z -1/2 * q1 -1/2 * q2 1/2 * q3;
-            1/2 * omega_x 0 1/2 * omega_z -1/2 * omega_y 1/2 * q0 -1/2 * q3 1/2 * q2;
-            1/2 * omega_y -1/2 * omega_z 0 1/2 * omega_x 1/2 * q3 1/2 * q0 -1/2 * q1;
-            1/2 * omega_z 1/2 * omega_y -1/2 * omega_x 0 -1/2 * q2 1/2 * q1 1/2 * q0;
-            0 0 0 0 0 (Iy - Iz)/Ix * omega_z (Iy- Iz)/Ix * omega_y;
-            0 0 0 0 (Iz - Ix)/Iy * omega_z 0 (Iz - Ix)/Iy * omega_x;
-            0 0 0 0  (Ix-Iy)/Iz * omega_y (Ix-Iy)/Iz * omega_x 0 ]
+    ω_x = x[5]
+    ω_y = x[6]
+    ω_z = x[7]
+    return  [0 -1/2 * ω_x -1/2 * ω_y -1/2 * ω_z -1/2 * q1 -1/2 * q2 1/2 * q3;
+            1/2 * ω_x 0 1/2 * ω_z -1/2 * ω_y 1/2 * q0 -1/2 * q3 1/2 * q2;
+            1/2 * ω_y -1/2 * ω_z 0 1/2 * ω_x 1/2 * q3 1/2 * q0 -1/2 * q1;
+            1/2 * ω_z 1/2 * ω_y -1/2 * ω_x 0 -1/2 * q2 1/2 * q1 1/2 * q0;
+            0 0 0 0 0 (Iy - Iz)/Ix * ω_z (Iy- Iz)/Ix * ω_y;
+            0 0 0 0 (Iz - Ix)/Iy * ω_z 0 (Iz - Ix)/Iy * ω_x;
+            0 0 0 0  (Ix-Iy)/Iz * ω_y (Ix-Iy)/Iz * ω_x 0 ]
 end
 
 function make_H(filter::Kalman_Filter, i)
@@ -172,18 +172,18 @@ function plot(time, x, estimate)
 
     fig = figure()
     ax = fig[:add_subplot](111)
-    ax[:plot](time, x[:,5], label=L"$\omega_x$")
-    ax[:plot](time, x[:,6], label=L"$\omega_y$")
-    ax[:plot](time, x[:,7], label=L"$\omega_z$")
-    ax[:plot](time, estimate[:,5], label=L"estimated $\omega_x$")
-    ax[:plot](time, estimate[:,6], label=L"estimated $\omega_y$")
-    ax[:plot](time, estimate[:,7], label=L"estimated $\omega_z$")
+    ax[:plot](time, x[:,5], label=L"$\ω_x$")
+    ax[:plot](time, x[:,6], label=L"$\ω_y$")
+    ax[:plot](time, x[:,7], label=L"$\ω_z$")
+    ax[:plot](time, estimate[:,5], label=L"estimated $\ω_x$")
+    ax[:plot](time, estimate[:,6], label=L"estimated $\ω_y$")
+    ax[:plot](time, estimate[:,7], label=L"estimated $\ω_z$")
     ax[:set_xlim]([0, last(time)])
     ax[:set_xlabel]("time [sec]")
-    ax[:set_ylabel](L"$\omega$ [rad/s]")
+    ax[:set_ylabel](L"$\ω$ [rad/s]")
     legend(loc = "best", fontsize=15)
     # PyPlot.plt[:show]()
-    # PyPlot.plt[:savefig]("omega.pgf")
+    # PyPlot.plt[:savefig]("ω.pgf")
 
 
     fig = figure()
@@ -209,11 +209,11 @@ function main()
     estimated_value = Array{Float64, 2}(STEPNUM+1,7)
     # initial condition
     true_value[1, 1:4] = Quaternion_ini
-    true_value[1, 5:7] = omega_b
+    true_value[1, 5:7] = ω_b
 
     estimated_value[1, :] = [rand_normal(0,0.01)  for x in 1:7]'
     estimated_value[1, 1:4] += Quaternion_ini
-    estimated_value[1, 5:7] += omega_b
+    estimated_value[1, 5:7] += ω_b
     kalman = Kalman_Filter(estimated_value[1,:],P_ini)
     time = zeros(STEPNUM+1)
     for i in 1:STEPNUM
