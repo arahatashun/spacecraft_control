@@ -63,10 +63,10 @@ function make_dcm(q,noise::Int)
     :param noise: adding noise or not. 0 or 1
     :return :2 DCM vector
     =#
-    q0 = q[0]
-    q1 = q[1]
-    q2 = q[2]
-    q3 = q[3]
+    q0 = q[1]
+    q1 = q[2]
+    q2 = q[3]
+    q3 = q[4]
     x = [q0 ^ 2 + q1 ^ 2 - q2 ^ 2 - q3 ^ 2 + noise * rand_normal(0,r_std);
         2 * (q1 * q2 - q0 * q3) + noise * rand_normal(0,r_std);
         2 * (q1 * q3 + q0 * q2) + noise * rand_normal(0,r_std)]
@@ -120,22 +120,23 @@ function make_H(filter::Kalman_Filter, i)
 
     :param i: index of dcm
     =#
-    q0 = filter.state.x[1]
-    q1 = filter.state.x[2]
-    q2 = filter.state.x[3]
-    q3 = filter.state.x[4]
-    if i == 0
+    q0 = filter.state[1]
+    q1 = filter.state[2]
+    q2 = filter.state[3]
+    q3 = filter.state[4]
+    if i == 1
         return [2q0 2q1 -2q2 -2q3 0 0 0;
                 2q3 2q2 2q1 2q0 0 0 0;
                 -2q2 2q0 2q3 2q2 0 0 0]
-    elseif i == 1
+    elseif i == 2
         return[-2q3 2q2 2q1 -2q0 0 0 0;
                 2q0 -2q1 2q2 -2q3 0 0 0;
                 2q1 2q0 2q3 2q2 0 0 0]
-    elseif i == 2
+    elseif i == 3
         return [2q2 2q3 2q0 2q1 0 0 0;
                 -2q1 -2q0 2q3 2q2 0 0 0;
                 2q0 -2q1 -2q2 2q3 0 0 0]
+    end
 end
 
 function predict(filter::Kalman_Filter)
@@ -165,15 +166,15 @@ end
 
 function main()
     true_value = Array{Float64, 2}(STEPNUM+1,7)
-    estimated_value = Array{Kalman_Filter, 2}(STEPNUM+1,7)
+    estimated_value = Array{Float64, 2}(STEPNUM+1,7)
     # initial condition
-    true_value[1, 1:4] = q_initial
+    true_value[1, 1:4] = Quaternion_ini
     true_value[1, 5:7] = omega_b
 
     estimated_value[1, :] = [rand_normal(0,0.01)  for x in 1:7]'
     estimated_value[1, 1:4] += Quaternion_ini
     estimated_value[1, 5:7] += omega_b
-    kalman = Kalman_Filter(estimated_value,P_ini)
+    kalman = Kalman_Filter(estimated_value[1,:],P_ini)
     time = zeros(STEPNUM+1)
     for i in 1:STEPNUM
         time[i+1] = i * STEP
@@ -182,9 +183,12 @@ function main()
         if STEPNUM % 100 == 0
             #observation and update
             index = rand(1:3)
-            dcm = make_dcm(true_value)[index]
+            dcm = make_dcm(true_value,1)[index]
             update(kalman, dcm, index)
         else
             predict(kalman)
         end
     end
+end
+
+main()
