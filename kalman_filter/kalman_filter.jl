@@ -68,15 +68,15 @@ function make_dcm(q,noise::Int)
     q2 = q[3]
     q3 = q[4]
     x = [q0 ^ 2 + q1 ^ 2 - q2 ^ 2 - q3 ^ 2 + noise * rand_normal(0,r_std);
-        2 * (q1 * q2 - q0 * q3) + noise * rand_normal(0,r_std);
-        2 * (q1 * q3 + q0 * q2) + noise * rand_normal(0,r_std)]
+        2 * (q1 * q2 + q0 * q3) + noise * rand_normal(0,r_std);
+        2 * (q1 * q3 - q0 * q2) + noise * rand_normal(0,r_std)]
 
     y = [2 * (q1 * q2 + q0 * q3) + noise * rand_normal(0,r_std);
         q0 ^ 2 - q1 ^ 2 + q2 ^ 2 - q3 ^ 2 + noise * rand_normal(0,r_std);
-        2 * (q2 * q3 - q0 * q1) + noise * rand_normal(0,r_std)]
+        2 * (q2 * q3 + q0 * q1) + noise * rand_normal(0,r_std)]
 
-    z = [2 * (q1 * q3 - q0 * q2) + noise * rand_normal(0,r_std);
-        2 * (q2 * q3 + q0 * q1) + noise * rand_normal(0,r_std);
+    z = [2 * (q1 * q3 + q0 * q2) + noise * rand_normal(0,r_std);
+        2 * (q2 * q3 - q0 * q1) + noise * rand_normal(0,r_std);
         q0 ^ 2 - q1 ^ 2 - q2 ^ 2 + q3 ^ 2 + noise * rand_normal(0,r_std)]
 
     return [x, y, z]
@@ -131,7 +131,7 @@ function make_H(filter::Kalman_Filter, i)
     if i == 1
         return [2q0 2q1 -2q2 -2q3 0 0 0;
                 2q3 2q2 2q1 2q0 0 0 0;
-                -2q2 2q0 2q3 2q2 0 0 0]
+                -2q2 2q3 -2q0 2q1 0 0 0]
     elseif i == 2
         return[-2q3 2q2 2q1 -2q0 0 0 0;
                 2q0 -2q1 2q2 -2q3 0 0 0;
@@ -139,7 +139,7 @@ function make_H(filter::Kalman_Filter, i)
     elseif i == 3
         return [2q2 2q3 2q0 2q1 0 0 0;
                 -2q1 -2q0 2q3 2q2 0 0 0;
-                2q0 -2q1 -2q2 2q3 0 0 0]
+                2q0 -2q1 -2q2 2q3  0 0 0]
     end
 end
 
@@ -161,7 +161,7 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     H = make_H(filter, index)
     P = M - M * H' * inv(H * M * H' + R) * H * M
     K = P * H' * inv(R)
-    z_estimated = H * filter.state
+    z_estimated = make_dcm(filter.state, 0)[index]
     z = dcm - z_estimated
     x_hat = K * z
     filter.variance = P
