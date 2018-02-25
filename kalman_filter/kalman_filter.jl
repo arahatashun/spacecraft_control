@@ -1,3 +1,4 @@
+#!/usr/bin/env julia
 # Author:Shun Arahata
 # kalman filter
 using PyPlot
@@ -8,17 +9,20 @@ rpm2radpersec(rpm) = rpm *2 * pi / 60
 const omega_s = rpm2radpersec(17)
 const STEPNUM = 10000
 const STEP = 0.01
-
+const q_std = 0.01
+const r_std = 0.01
 Quaternion_ini = [1.0; 0.0; 0.0; 0.0]
 omega_b = [0.1; omega_s + 0.1; 0.0]
-B = [0, 0, 0; 0, 0, 0; 0, 0, 0; 0, 0, 0; 1/Ix, 0, 0;0, 1/Iy, 0; 0, 0, 1/Iz]
-q_std = 0.01
-Q = [q_std^2 ,0 , 0;0, q_std^2, 0; 0, 0, q_std^2]
-r_std = 0.01
-R = [r_std^2, 0, 0;0, r_std^2, 0;0, 0, r_std^2]
-P_ini = [0.01, 0, 0, 0, 0, 0, 0;0, 0.01, 0, 0, 0, 0, 0;
-    0, 0, 0.01, 0, 0, 0, 0;0, 0, 0, 0.01, 0, 0, 0;
-    0, 0, 0, 0, 0, 0.01, 0;0, 0, 0, 0, 0, 0, 0.01]
+B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
+Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
+R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
+P_ini = [0.01 0 0 0 0 0 0;0 0.01 0 0 0 0 0;0 0 0.01 0 0 0 0;0 0 0 0.01 0 0 0;
+        0 0 0 0 0 0.01 0;0 0 0 0 0 0 0.01]
+
+struct Kalman_Filter
+    state::Array
+    variance::Array
+end
 
 function rand_normal(mean, stdev)
     #= return a random sample from a normal (Gaussian) distribution
@@ -63,17 +67,17 @@ function make_dcm(q,noise::Int)
     q1 = q[1]
     q2 = q[2]
     q3 = q[3]
-    x = [q0 ** 2 + q1 ** 2 - q2 ** 2 - q3 ** 2 + noise * rand_normal(0,r_std);
+    x = [q0 ^ 2 + q1 ^ 2 - q2 ^ 2 - q3 ^ 2 + noise * rand_normal(0,r_std);
         2 * (q1 * q2 - q0 * q3) + noise * rand_normal(0,r_std);
         2 * (q1 * q3 + q0 * q2) + noise * rand_normal(0,r_std)]
 
     y = [2 * (q1 * q2 + q0 * q3) + noise * rand_normal(0,r_std);
-        q0 ** 2 - q1 ** 2 + q2 ** 2 - q3 ** 2 + noise * rand_normal(0,r_std);
+        q0 ^ 2 - q1 ^ 2 + q2 ^ 2 - q3 ^ 2 + noise * rand_normal(0,r_std);
         2 * (q2 * q3 - q0 * q1) + noise * rand_normal(0,r_std)]
 
     z = [2 * (q1 * q3 - q0 * q2) + noise * rand_normal(0,r_std);
         2 * (q2 * q3 + q0 * q1) + noise * rand_normal(0,r_std);
-        q0 ** 2 - q1 ** 2 - q2 ** 2 + q3 ** 2] + noise * rand_normal(0,r_std))
+        q0 ^ 2 - q1 ^ 2 - q2 ^ 2 + q3 ^ 2 + noise * rand_normal(0,r_std)]
 
     return [x, y, z]
 end
@@ -97,12 +101,6 @@ function differential_eq(x,noise::Int)
     return [dq0/norm; dq1/norm; dq2/norm; dq3/norm; new_omega_x; new_omega_y; new_omega_z]
 end
 
-
-type Kalman_Filter
-    state::Array{Float64, 2}(1,7)
-    variance::Array{Float54,2}(7,7)
-end
-
 function make_A(filter::Kalman_Filter)
     x = filter.state
     q0 = x[1]
@@ -112,9 +110,9 @@ function make_A(filter::Kalman_Filter)
     omega_x = x[5]
     omega_y = x[6]
     omega_z = x[7]
-    return  [0, -1/2*omega_x, -1/2*omega_y, -1/2*omega_z, -1/2 * q1, -1/2q2, 1/2q3;
-            1/2*omega_x, 0, 1/2*omega_z, -1/2*omega_y, 1/2 * q0. -1/2q3, 1/2q2;
-            0, 0, 0, 0, 0, (Iy-Iz)/Ix*oemga_z, (Iy-Iz)/Ix*omega_y];
+    return  [0 -1/2*omega_x -1/2*omega_y -1/2*omega_z -1/2 * q1 -1/2 * q2 1/2q3;
+            1/2*omega_x 0 1/2*omega_z -1/2*omega_y 1/2 * q0 -1/2 * q3 1/2 * q2;
+            0 0 0 0 0 (Iy-Iz)/Ix * oemga_z (Iy-Iz)/Ix * omega_y];
 end
 
 function make_H(filter::Kalman_Filter, i)
@@ -127,17 +125,17 @@ function make_H(filter::Kalman_Filter, i)
     q2 = filter.state.x[3]
     q3 = filter.state.x[4]
     if i == 0
-        return [2q0, 2q1, -2q2, -2q3, 0, 0, 0;
-        2q3, 2q2, 2q1, 2q0, 0, 0, 0;
-        -2q2, 2q0, 2q3, 2q2, 0, 0, 0]
-    else if i == 1
-        return[-2q3, 2q2, 2q1, -2q0, 0, 0, 0;
-            2q0, -2q1, 2q2, -2q3, 0, 0, 0;
-            2q1, 2q0, 2q3, 2q2, 0, 0, 0]
-    else if i == 2
-        return [2q2, 2q3, 2q0, 2q1, 0, 0, 0;
-                -2q1, -2q0, 2q3, 2q2, 0, 0, 0;
-                2q0, -2q1, -2q2, 2q3, 0, 0, 0]
+        return [2q0 2q1 -2q2 -2q3 0 0 0;
+                2q3 2q2 2q1 2q0 0 0 0;
+                -2q2 2q0 2q3 2q2 0 0 0]
+    elseif i == 1
+        return[-2q3 2q2 2q1 -2q0 0 0 0;
+                2q0 -2q1 2q2 -2q3 0 0 0;
+                2q1 2q0 2q3 2q2 0 0 0]
+    elseif i == 2
+        return [2q2 2q3 2q0 2q1 0 0 0;
+                -2q1 -2q0 2q3 2q2 0 0 0;
+                2q0 -2q1 -2q2 2q3 0 0 0]
 end
 
 function predict(filter::Kalman_Filter)
@@ -175,7 +173,7 @@ function main()
     estimated_value[1, :] = [rand_normal(0,0.01)  for x in 1:7]'
     estimated_value[1, 1:4] += Quaternion_ini
     estimated_value[1, 5:7] += omega_b
-    kalman = Kalman_Filter(estimated_value, )
+    kalman = Kalman_Filter(estimated_value,P_ini)
     time = zeros(STEPNUM+1)
     for i in 1:STEPNUM
         time[i+1] = i * STEP
@@ -183,7 +181,9 @@ function main()
                     runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
         if STEPNUM % 100 == 0
             #observation and update
-            update(kalman)
+            index = rand(1:3)
+            dcm = make_dcm(true_value)[index]
+            update(kalman, dcm, index)
         else
             predict(kalman)
         end
