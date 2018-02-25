@@ -75,7 +75,7 @@ function make_dcm(q,noise::Int)
         2 * (q2 * q3 + q0 * q1) + noise * rand_normal(0,r_std);
         q0 ** 2 - q1 ** 2 - q2 ** 2 + q3 ** 2] + noise * rand_normal(0,r_std))
 
-    return x, y, z
+    return [x, y, z]
 end
 
 function differential_eq(x,noise::Int)
@@ -103,7 +103,7 @@ type Kalman_Filter
     variance::Array{Float54,2}(7,7)
 end
 
-function A(filter::Kalman_Filter)
+function make_A(filter::Kalman_Filter)
     x = filter.state
     q0 = x[1]
     q1 = x[2]
@@ -117,20 +117,52 @@ function A(filter::Kalman_Filter)
             0, 0, 0, 0, 0, (Iy-Iz)/Ix*oemga_z, (Iy-Iz)/Ix*omega_y];
 end
 
+function make_H(filter::Kalman_Filter, i)
+    #= H matrix
+
+    :param i: index of dcm
+    =#
+    q0 = filter.state.x[1]
+    q1 = filter.state.x[2]
+    q2 = filter.state.x[3]
+    q3 = filter.state.x[4]
+    if i == 0
+        return [2q0, 2q1, -2q2, -2q3, 0, 0, 0;
+        2q3, 2q2, 2q1, 2q0, 0, 0, 0;
+        -2q2, 2q0, 2q3, 2q2, 0, 0, 0]
+    else if i == 1
+        return[-2q3, 2q2, 2q1, -2q0, 0, 0, 0;
+            2q0, -2q1, 2q2, -2q3, 0, 0, 0;
+            2q1, 2q0, 2q3, 2q2, 0, 0, 0]
+    else if i == 2
+        return [2q2, 2q3, 2q0, 2q1, 0, 0, 0;
+                -2q1, -2q0, 2q3, 2q2, 0, 0, 0;
+                2q0, -2q1, -2q2, 2q3, 0, 0, 0]
+end
+
 function predict(filter::Kalman_Filter)
-    A = A(filter)
+    A = make_A(filter)
     phi = expm(A*STEP)
     gamma = inv(A) * (phi-1) * B
     filter.variance = gamma * filter.variance *  gamma' + gamma * Q * gamma'
     filter.state += runge_kutta(x -> differential_eq(x, 0), filter.state, STEP)
 end
 
-function update(filter::Kalman_Filter,index::Int)
+function update(filter::Kalman_Filter, dcm, index::Int)
     #=observation and update step
 
+    :param dcm: dcm vector
     :param index: index of dcm vector
     =#
-
+    M = filter.variance
+    H = make_H(filter, index)
+    P = M - M * H' * inv(H * M *H' + R) * H * M
+    K = P * H' * inv(R)
+    z_estimated = H(filter.state)[index]
+    z = dcm - z_estimated
+    x_hat = K * z
+    filter.variance = K
+    filter.state += x_hat
 end
 
 function main()
@@ -151,7 +183,7 @@ function main()
                     runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
         if STEPNUM % 100 == 0
             #observation and update
-
+            update(kalman)
         else
             predict(kalman)
         end
