@@ -110,9 +110,13 @@ function make_A(filter::Kalman_Filter)
     omega_x = x[5]
     omega_y = x[6]
     omega_z = x[7]
-    return  [0 -1/2*omega_x -1/2*omega_y -1/2*omega_z -1/2 * q1 -1/2 * q2 1/2q3;
-            1/2*omega_x 0 1/2*omega_z -1/2*omega_y 1/2 * q0 -1/2 * q3 1/2 * q2;
-            0 0 0 0 0 (Iy-Iz)/Ix * omega_z (Iy-Iz)/Ix * omega_y];
+    return  [0 -1/2 * omega_x -1/2 * omega_y -1/2 * omega_z -1/2 * q1 -1/2 * q2 1/2 * q3;
+            1/2 * omega_x 0 1/2 * omega_z -1/2 * omega_y 1/2 * q0 -1/2 * q3 1/2 * q2;
+            1/2 * omega_y -1/2 * omega_z 0 1/2 * omega_x 1/2 * q3 1/2 * q0 -1/2 * q1;
+            1/2 * omega_z 1/2 * omega_y -1/2 * omega_x 0 -1/2 * q2 1/2 * q1 1/2 * q0;
+            0 0 0 0 0 (Iy - Iz)/Ix * omega_z (Iy- Iz)/Ix * omega_y;
+            0 0 0 0 (Iz - Ix)/Iy * omega_z 0 (Iz - Ix)/Iy * omega_x;
+            0 0 0 0  (Ix-Iy)/Iz * omega_y (Ix-Iy)/Iz * omega_x 0 ]
 end
 
 function make_H(filter::Kalman_Filter, i)
@@ -140,7 +144,6 @@ function make_H(filter::Kalman_Filter, i)
 end
 
 function predict(filter::Kalman_Filter)
-    println("po")
     A = make_A(filter)
     phi = expm(A*STEP)
     gamma = inv(A) * (phi-1) * B
@@ -217,7 +220,7 @@ function main()
         time[i+1] = i * STEP
         true_value[i+1, :] = true_value[i, :] +
                     runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
-        if STEPNUM % 100 == 1
+        if  i % 100 == 99
             #observation and update
             index = rand(1:3)
             dcm = make_dcm(true_value,1)[index]
