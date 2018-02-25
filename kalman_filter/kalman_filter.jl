@@ -17,9 +17,9 @@ B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
 Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
 R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
 P_ini = [0.01 0 0 0 0 0 0;0 0.01 0 0 0 0 0;0 0 0.01 0 0 0 0;0 0 0 0.01 0 0 0;
-        0 0 0 0 0 0.01 0;0 0 0 0 0 0 0.01]
+        0 0 0 0 0 0 0.01;0 0 0 0 0 0.01 0;0 0 0 0 0 0 0.01]
 
-struct Kalman_Filter
+mutable struct Kalman_Filter
     state::Array
     variance::Array
 end
@@ -140,10 +140,11 @@ function make_H(filter::Kalman_Filter, i)
 end
 
 function predict(filter::Kalman_Filter)
+    println("po")
     A = make_A(filter)
     phi = expm(A*STEP)
     gamma = inv(A) * (phi-1) * B
-    filter.variance = gamma * filter.variance *  gamma' + gamma * Q * gamma'
+    filter.variance = phi * filter.variance *  phi' + gamma * Q * gamma'
     filter.state += runge_kutta(x -> differential_eq(x, 0), filter.state, STEP)
 end
 
@@ -155,13 +156,49 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     =#
     M = filter.variance
     H = make_H(filter, index)
-    P = M - M * H' * inv(H * M *H' + R) * H * M
+    P = M - M * H' * inv(H * M * H' + R) * H * M
     K = P * H' * inv(R)
-    z_estimated = H(filter.state)[index]
+    z_estimated = H[index]
     z = dcm - z_estimated
     x_hat = K * z
-    filter.variance = K
+    filter.variance = P
     filter.state += x_hat
+end
+
+function plot(time, x, estimate)
+
+    fig = figure()
+    ax = fig[:add_subplot](111)
+    ax[:plot](time, x[:,5], label=L"$\omega_x$")
+    ax[:plot](time, x[:,6], label=L"$\omega_y$")
+    ax[:plot](time, x[:,7], label=L"$\omega_z$")
+    ax[:plot](time, estimate[:,5], label=L"estimated $\omega_x$")
+    ax[:plot](time, estimate[:,6], label=L"estimated $\omega_y$")
+    ax[:plot](time, estimate[:,7], label=L"estimated $\omega_z$")
+    ax[:set_xlim]([0, last(time)])
+    ax[:set_xlabel]("time [sec]")
+    ax[:set_ylabel](L"$\omega$ [rad/s]")
+    legend(loc = "best", fontsize=15)
+    # PyPlot.plt[:show]()
+    # PyPlot.plt[:savefig]("omega.pgf")
+
+
+    fig = figure()
+    ax = fig[:add_subplot](111)
+    ax[:plot](time, x[:,1], label=L"$q_0$")
+    ax[:plot](time, x[:,2], label=L"$q_1$")
+    ax[:plot](time, x[:,3], label=L"$q_2$")
+    ax[:plot](time, x[:,4], label=L"$q_3$")
+    ax[:plot](time, estimate[:,1], label=L"estimated $q_0$")
+    ax[:plot](time, estimate[:,2], label=L"estimated $q_1$")
+    ax[:plot](time, estimate[:,3], label=L"estimated $q_2$")
+    ax[:plot](time, estimate[:,4], label=L"estimated $q_3$")
+    ax[:set_xlim]([0, last(time)])
+    ax[:set_xlabel]("time [sec]")
+    ax[:set_ylabel]("Quaternion")
+    legend(loc = "best", fontsize=15)
+    PyPlot.plt[:show]()
+    # PyPlot.plt[:savefig]("quaternion.pgf")
 end
 
 function main()
@@ -188,7 +225,9 @@ function main()
         else
             predict(kalman)
         end
+        estimated_value[i+1, :] = kalman.state
     end
+    plot(time, true_value,estimated_value)
 end
 
 main()
