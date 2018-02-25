@@ -112,7 +112,7 @@ function make_A(filter::Kalman_Filter)
     omega_z = x[7]
     return  [0 -1/2*omega_x -1/2*omega_y -1/2*omega_z -1/2 * q1 -1/2 * q2 1/2q3;
             1/2*omega_x 0 1/2*omega_z -1/2*omega_y 1/2 * q0 -1/2 * q3 1/2 * q2;
-            0 0 0 0 0 (Iy-Iz)/Ix * oemga_z (Iy-Iz)/Ix * omega_y];
+            0 0 0 0 0 (Iy-Iz)/Ix * omega_z (Iy-Iz)/Ix * omega_y];
 end
 
 function make_H(filter::Kalman_Filter, i)
@@ -158,7 +158,7 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     H = make_H(filter, index)
     P = M - M * H' * inv(H * M * H' + R) * H * M
     K = P * H' * inv(R)
-    z_estimated = H[index]
+    z_estimated = H * filter.state
     z = dcm - z_estimated
     x_hat = K * z
     filter.variance = P
@@ -217,7 +217,7 @@ function main()
         time[i+1] = i * STEP
         true_value[i+1, :] = true_value[i, :] +
                     runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
-        if STEPNUM % 100 == 0
+        if STEPNUM % 100 == 1
             #observation and update
             index = rand(1:3)
             dcm = make_dcm(true_value,1)[index]
