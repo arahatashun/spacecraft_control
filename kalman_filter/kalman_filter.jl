@@ -117,12 +117,12 @@ function A(filter::Kalman_Filter)
             0, 0, 0, 0, 0, (Iy-Iz)/Ix*oemga_z, (Iy-Iz)/Ix*omega_y];
 end
 
-function prediction(filter::Kalman_Filter)
+function predict(filter::Kalman_Filter)
     A = A(filter)
     phi = expm(A*STEP)
     gamma = inv(A) * (phi-1) * B
     filter.variance = gamma * filter.variance *  gamma' + gamma * Q * gamma'
-    filter.state = runge_kutta(x -> differential_eq(x, 0), filter.state, STEP)
+    filter.state += runge_kutta(x -> differential_eq(x, 0), filter.state, STEP)
 end
 
 function update(filter::Kalman_Filter,index::Int)
@@ -135,7 +135,7 @@ end
 
 function main()
     true_value = Array{Float64, 2}(STEPNUM+1,7)
-    estimated_value = Array{Float64, 2}(STEPNUM+1,7)
+    estimated_value = Array{Kalman_Filter, 2}(STEPNUM+1,7)
     # initial condition
     true_value[1, 1:4] = q_initial
     true_value[1, 5:7] = omega_b
@@ -143,16 +143,16 @@ function main()
     estimated_value[1, :] = [rand_normal(0,0.01)  for x in 1:7]'
     estimated_value[1, 1:4] += Quaternion_ini
     estimated_value[1, 5:7] += omega_b
+    kalman = Kalman_Filter(estimated_value, )
     time = zeros(STEPNUM+1)
     for i in 1:STEPNUM
         time[i+1] = i * STEP
         true_value[i+1, :] = true_value[i, :] +
-                    runge_kutta(differential_eq_with_noise, i * STEP, true_value[i,:], STEP)
+                    runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
         if STEPNUM % 100 == 0
             #observation and update
 
         else
-            estimated_value[i+1, :] = estimated_value[i, :] +
-                runge_kutta(differential_eq_no_noise, i * STEP, true_value[i,:], STEP)
+            predict(kalman)
         end
     end
