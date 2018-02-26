@@ -185,14 +185,10 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     K = P * H' * inv(R)
     dcm_estimated = make_dcm(filter.state, 0,index)
     z = dcm - dcm_estimated
-    println("dcm_t",dcm)
-    println("dcm_est",dcm_estimated)
     x̂ = K * z
     filter.variance = P
     filter.state += x̂
     normalize_quaternion!(filter)
-    println("index",index)
-    println("dcm_unti",make_dcm(filter.state, 0, index))
 end
 
 function plot(time, x, estimate)
@@ -254,10 +250,6 @@ function main()
             #observation and update
             index = 1
             dcm = make_dcm(true_value[i+1,:],1,index)
-            #=println("index",index)
-            println("kalman",kalman.state)
-            println("true_value",true_value[i+1,:])
-            =#
             update(kalman, dcm, index)
         end
         estimated_value[i+1, :] = kalman.state
