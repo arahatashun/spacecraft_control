@@ -5,10 +5,10 @@ using PyPlot
 const Ix = 1.9
 const Iy = 1.6
 const Iz = 2.0
-const OBSERVE_STEP =100
+const OBSERVE_STEP =10
 rpm2radpersec(rpm) = rpm *2 * π / 60
 const ω_s = rpm2radpersec(17)
-const STEPNUM = 10000
+const STEPNUM = 100
 const STEP = 0.01
 const q_std = 0.01
 const r_std = 0.01
@@ -17,10 +17,10 @@ const ω_b = [0.1; ω_s + 0.1; 0.0]
 const B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
 const Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
 const R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
-const P_ini = [0.01^2 0 0 0 0 0 0;0 0.01^2 0 0 0 0 0;0 0 0.01^2 0 0 0 0;0 0 0 0.01^2 0 0 0;
-        0 0 0 0 0 0 0.01^2;0 0 0 0 0 0.01^2 0;0 0 0 0 0 0 0.01^2]
+const P_ini = [0.01 0 0 0 0 0 0;0 0.01 0 0 0 0 0;0 0 0.01 0 0 0 0;0 0 0 0.01^ 0 0 0;
+        0 0 0 0 0 0 0.01;0 0 0 0 0 0.01 0;0 0 0 0 0 0 0.01]
 
-const rng = MersenneTwister(152)
+const rng = MersenneTwister(2)
 
 mutable struct Kalman_Filter
     state::Array
@@ -59,12 +59,12 @@ function runge_kutta(f, x, step)
     return sum
 end
 
-@inbounds function make_dcm(q,noise::Int)
+@inbounds function make_dcm(q,noise::Int,index::Int)
     #= make dcm vector and (add noise)
 
     :param x:q
     :param noise: adding noise or not. 0 or 1
-    :return :2 DCM vector
+    :return :DCM vector
     =#
     q0 = q[1]
     q1 = q[2]
@@ -82,7 +82,10 @@ end
         2 * (q2 * q3 - q0 * q1) + noise * rand_normal(0,r_std);
         q0 ^ 2 - q1 ^ 2 - q2 ^ 2 + q3 ^ 2 + noise * rand_normal(0,r_std)]
 
-    return [x, y, z]
+    index==1 && return x
+    index==2 && return y
+    index==3 && return z
+    println("Index Error")
 end
 
 @inbounds function differential_eq(x,noise::Int)
@@ -146,11 +149,25 @@ end
     end
 end
 
+function normalize_quaternion!(filter::Kalman_Filter)
+    q0 = filter.state[1]
+    q1 = filter.state[2]
+    q2 = filter.state[3]
+    q3 = filter.state[4]
+    norm = sqrt(q0^2 + q1^2 + q2^2 + q3^2)
+    filter.state[1] = q0/norm
+    filter.state[2] = q1/norm
+    filter.state[3] = q2/norm
+    filter.state[4] = q3/norm
+end
+
 function predict(filter::Kalman_Filter)
     A = make_A(filter)
     Φ= expm(A*STEP)
     Γ = inv(A) * (Φ-1) * B
-    filter.variance = Φ * filter.variance *  Φ' + Γ * Q * Γ'
+    P = filter.variance
+    P = Φ * P*  Φ' + Γ * Q * Γ'
+    filter.variance = P
     filter.state += runge_kutta(x -> differential_eq(x, 0), filter.state, STEP)
 end
 
@@ -163,12 +180,20 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     M = filter.variance
     H = make_H(filter, index)
     P = M - M * H' * inv(H * M * H' + R) * H * M
+    #=println("P",P)
+    println("H", H)
+    println("Inv", inv(R))
+    =#
     K = P * H' * inv(R)
-    dcm_estimated = make_dcm(filter.state, 0)[index]
+    #println("K",K)
+    dcm_estimated = make_dcm(filter.state, 0,index)
     z = dcm - dcm_estimated
+    #println("dcm_t",dcm)
+    #println("dcm_est",dcm_estimated)
     x̂ = K * z
     filter.variance = P
     filter.state += x̂
+    normalize_quaternion!(filter)
 end
 
 function plot(time, x, estimate)
@@ -223,17 +248,22 @@ function main()
         time[i+1] = i * STEP
         true_value[i+1, :] = true_value[i, :] +
                     runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
+
+        predict(kalman)
+
         if  i % OBSERVE_STEP == OBSERVE_STEP-1
             #observation and update
             index = rand(rng, 1:3)
-            dcm = make_dcm(true_value,1)[index]
+            dcm = make_dcm(true_value[i+1,:],1,index)
+            #=println("index",index)
+            println("kalman",kalman.state)
+            println("true_value",true_value[i+1,:])
+            =#
             update(kalman, dcm, index)
-        else
-            predict(kalman)
         end
         estimated_value[i+1, :] = kalman.state
     end
     plot(time, true_value,estimated_value)
 end
 
-main()
+@time main()
