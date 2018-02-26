@@ -9,8 +9,8 @@ rpm2radpersec(rpm) = rpm *2 * π / 60
 const ω_s = rpm2radpersec(17)
 const STEPNUM = 10000
 const STEP = 0.01
-const q_std = 0.001
-const r_std = 0.001
+const q_std = 0.01
+const r_std = 0.01
 Quaternion_ini = [1.0; 0.0; 0.0; 0.0]
 ω_b = [0.1; ω_s + 0.1; 0.0]
 B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
@@ -19,7 +19,8 @@ R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
 P_ini = [0.01^2 0 0 0 0 0 0;0 0.01^2 0 0 0 0 0;0 0 0.01^2 0 0 0 0;0 0 0 0.01^2 0 0 0;
         0 0 0 0 0 0 0.01^2;0 0 0 0 0 0.01^2 0;0 0 0 0 0 0 0.01^2]
 
-rng = MersenneTwister(7)
+rng = MersenneTwister(201)
+
 mutable struct Kalman_Filter
     state::Array
     variance::Array
@@ -57,7 +58,7 @@ function runge_kutta(f, x, step)
     return sum
 end
 
-function make_dcm(q,noise::Int)
+@inbounds function make_dcm(q,noise::Int)
     #= make dcm vector and (add noise)
 
     :param x:q
@@ -83,7 +84,7 @@ function make_dcm(q,noise::Int)
     return [x, y, z]
 end
 
-function differential_eq(x,noise::Int)
+@inbounds function differential_eq(x,noise::Int)
     q0 = x[1]
     q1 = x[2]
     q2 = x[3]
@@ -217,13 +218,13 @@ function main()
     estimated_value[1, 5:7] += ω_b
     kalman = Kalman_Filter(estimated_value[1,:],P_ini)
     time = zeros(STEPNUM+1)
-    for i in 1:STEPNUM
+    @inbounds for i in 1:STEPNUM
         time[i+1] = i * STEP
         true_value[i+1, :] = true_value[i, :] +
                     runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
         if  i % 100 == 99
             #observation and update
-            index = rand(1:3)
+            index = rand(rng, 1:3)
             dcm = make_dcm(true_value,1)[index]
             update(kalman, dcm, index)
         else
