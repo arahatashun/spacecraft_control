@@ -74,7 +74,7 @@ end
         2 * (q1 * q2 + q0 * q3) + noise * rand_normal(0,r_std);
         2 * (q1 * q3 - q0 * q2) + noise * rand_normal(0,r_std)]
 
-    y = [2 * (q1 * q2 + q0 * q3) + noise * rand_normal(0,r_std);
+    y = [2 * (q1 * q2 - q0 * q3) + noise * rand_normal(0,r_std);
         q0 ^ 2 - q1 ^ 2 + q2 ^ 2 - q3 ^ 2 + noise * rand_normal(0,r_std);
         2 * (q2 * q3 + q0 * q1) + noise * rand_normal(0,r_std)]
 
@@ -98,10 +98,10 @@ end
     dq2 = 1/2 * (q3 * ω_x + q0 * ω_y - q1 * ω_z)
     dq3 = 1/2 * (-q2 * ω_x + q1 * ω_y + q0 * ω_z)
     norm = sqrt(dq0^2 + dq1^2 + dq2^2 + dq3^2)
-    new_ω_x = (Iy - Iz)/Ix * ω_y * ω_z + noise * rand_normal(0, q_std)/Ix
-    new_ω_y = (Iz - Ix)/Iy * ω_z * ω_x + noise * rand_normal(0, q_std)/Iy
-    new_ω_z = (Ix - Iy)/Iz * ω_x * ω_y + noise * rand_normal(0, q_std)/Iz
-    return [dq0/norm; dq1/norm; dq2/norm; dq3/norm; new_ω_x; new_ω_y; new_ω_z]
+    d_ω_x = (Iy - Iz)/Ix * ω_y * ω_z + noise * rand_normal(0, q_std)/Ix
+    d_ω_y = (Iz - Ix)/Iy * ω_z * ω_x + noise * rand_normal(0, q_std)/Iy
+    d_ω_z = (Ix - Iy)/Iz * ω_x * ω_y + noise * rand_normal(0, q_std)/Iz
+    return [dq0/norm; dq1/norm; dq2/norm; dq3/norm; d_ω_x; d_ω_y; d_ω_z]
 end
 
 @inbounds function make_A(filter::Kalman_Filter)
@@ -113,7 +113,7 @@ end
     ω_x = x[5]
     ω_y = x[6]
     ω_z = x[7]
-    return  [0 -1/2 * ω_x -1/2 * ω_y -1/2 * ω_z -1/2 * q1 -1/2 * q2 1/2 * q3;
+    return  [0 -1/2 * ω_x -1/2 * ω_y -1/2 * ω_z -1/2 * q1 -1/2 * q2 -1/2 * q3;
             1/2 * ω_x 0 1/2 * ω_z -1/2 * ω_y 1/2 * q0 -1/2 * q3 1/2 * q2;
             1/2 * ω_y -1/2 * ω_z 0 1/2 * ω_x 1/2 * q3 1/2 * q0 -1/2 * q1;
             1/2 * ω_z 1/2 * ω_y -1/2 * ω_x 0 -1/2 * q2 1/2 * q1 1/2 * q0;
@@ -164,8 +164,8 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     H = make_H(filter, index)
     P = M - M * H' * inv(H * M * H' + R) * H * M
     K = P * H' * inv(R)
-    z_estimated = make_dcm(filter.state, 0)[index]
-    z = dcm - z_estimated
+    dcm_estimated = make_dcm(filter.state, 0)[index]
+    z = dcm - dcm_estimated
     x̂ = K * z
     filter.variance = P
     filter.state += x̂
