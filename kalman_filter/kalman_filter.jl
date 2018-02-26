@@ -16,27 +16,27 @@ Quaternion_ini = [1.0; 0.0; 0.0; 0.0]
 B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
 Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
 R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
-P_ini = [0.01 0 0 0 0 0 0;0 0.01 0 0 0 0 0;0 0 0.01 0 0 0 0;0 0 0 0.01 0 0 0;
-        0 0 0 0 0 0 0.01;0 0 0 0 0 0.01 0;0 0 0 0 0 0 0.01]
+P_ini = [0.01^2 0 0 0 0 0 0;0 0.01^2 0 0 0 0 0;0 0 0.01^2 0 0 0 0;0 0 0 0.01^2 0 0 0;
+        0 0 0 0 0 0 0.01^2;0 0 0 0 0 0.01^2 0;0 0 0 0 0 0 0.01^2]
 
 mutable struct Kalman_Filter
     state::Array
     variance::Array
 end
 
-function rand_normal(mean, stdev)
+function rand_normal(μ, σ)
     #= return a random sample from a normal (Gaussian) distribution
     refering from
     https://www.johndcook.com/blog/2012/02/22/julia-random-number-generation/
     =#
-    if stdev <= 0.0
+    if σ <= 0.0
         error("standard deviation must be positive")
     end
     u1 = rand()
     u2 = rand()
     r = sqrt( -2.0*log(u1) )
-    theta = 2.0*pi*u2
-    return mean + stdev*r*sin(theta)
+    θ = 2.0*π*u2
+    return μ + σ*r*sin(θ)
 end
 
 function runge_kutta(f, x, step)
@@ -145,9 +145,9 @@ end
 
 function predict(filter::Kalman_Filter)
     A = make_A(filter)
-    phi = expm(A*STEP)
-    gamma = inv(A) * (phi-1) * B
-    filter.variance = phi * filter.variance *  phi' + gamma * Q * gamma'
+    Φ= expm(A*STEP)
+    Γ = inv(A) * (Φ-1) * B
+    filter.variance = Φ * filter.variance *  Φ' + Γ * Q * Γ'
     filter.state += runge_kutta(x -> differential_eq(x, 0), filter.state, STEP)
 end
 
@@ -163,21 +163,21 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     K = P * H' * inv(R)
     z_estimated = make_dcm(filter.state, 0)[index]
     z = dcm - z_estimated
-    x_hat = K * z
+    x̂ = K * z
     filter.variance = P
-    filter.state += x_hat
+    filter.state += x̂
 end
 
 function plot(time, x, estimate)
 
     fig = figure()
     ax = fig[:add_subplot](111)
-    ax[:plot](time, x[:,5], label=L"$\ω_x$")
-    ax[:plot](time, x[:,6], label=L"$\ω_y$")
-    ax[:plot](time, x[:,7], label=L"$\ω_z$")
-    ax[:plot](time, estimate[:,5], label=L"estimated $\ω_x$")
-    ax[:plot](time, estimate[:,6], label=L"estimated $\ω_y$")
-    ax[:plot](time, estimate[:,7], label=L"estimated $\ω_z$")
+    ax[:plot](time, x[:,5], label=L"$\omega_x$")
+    ax[:plot](time, x[:,6], label=L"$\omega_y$")
+    ax[:plot](time, x[:,7], label=L"$\omega_z$")
+    ax[:plot](time, estimate[:,5], label=L"estimated $\omega_x$")
+    ax[:plot](time, estimate[:,6], label=L"estimated $\omega_y$")
+    ax[:plot](time, estimate[:,7], label=L"estimated $\omega_z$")
     ax[:set_xlim]([0, last(time)])
     ax[:set_xlabel]("time [sec]")
     ax[:set_ylabel](L"$\ω$ [rad/s]")
