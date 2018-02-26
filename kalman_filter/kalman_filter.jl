@@ -5,6 +5,7 @@ using PyPlot
 const Ix = 1.9
 const Iy = 1.6
 const Iz = 2.0
+const OBSERVE_STEP =100
 rpm2radpersec(rpm) = rpm *2 * π / 60
 const ω_s = rpm2radpersec(17)
 const STEPNUM = 10000
@@ -19,7 +20,7 @@ const R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
 const P_ini = [0.01^2 0 0 0 0 0 0;0 0.01^2 0 0 0 0 0;0 0 0.01^2 0 0 0 0;0 0 0 0.01^2 0 0 0;
         0 0 0 0 0 0 0.01^2;0 0 0 0 0 0.01^2 0;0 0 0 0 0 0 0.01^2]
 
-const rng = MersenneTwister(450)
+const rng = MersenneTwister(152)
 
 mutable struct Kalman_Filter
     state::Array
@@ -222,7 +223,7 @@ function main()
         time[i+1] = i * STEP
         true_value[i+1, :] = true_value[i, :] +
                     runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
-        if  i % 100 == 99
+        if  i % OBSERVE_STEP == OBSERVE_STEP-1
             #observation and update
             index = rand(rng, 1:3)
             dcm = make_dcm(true_value,1)[index]
