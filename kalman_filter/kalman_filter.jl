@@ -5,7 +5,7 @@ using PyPlot
 const Ix = 1.9
 const Iy = 1.6
 const Iz = 2.0
-const OBSERVE_STEP =10
+const OBSERVE_STEP =100
 rpm2radpersec(rpm) = rpm *2 * π / 60
 const ω_s = rpm2radpersec(17)
 const STEPNUM = 5000
@@ -14,13 +14,24 @@ const q_std = 0.01
 const r_std = 0.01
 const Quaternion_ini = [1.0; 0.0; 0.0; 0.0]
 const ω_b = [0.1; ω_s + 0.1; 0.0]
-const B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
+const B = [0 0 0;
+           0 0 0;
+           0 0 0;
+           0 0 0;
+           1/Ix 0 0;
+           0 1/Iy 0;
+           0 0 1/Iz]
 const Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
 const R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
-const P_ini = [0.01 0 0 0 0 0 0;0 0.01 0 0 0 0 0;0 0 0.01 0 0 0 0;0 0 0 0.01 0 0 0;
-        0 0 0 0 0.01 0 0;0 0 0 0 0 0.01 0;0 0 0 0 0 0 0.01]
+const P_ini = [0.01 0 0 0 0 0 0;
+               0 0.01 0 0 0 0 0;
+               0 0 0.01 0 0 0 0;
+               0 0 0 0.01 0 0 0;
+               0 0 0 0 0.01 0 0;
+               0 0 0 0 0 0.01 0;
+               0 0 0 0 0 0 0.01]
 
-const rng = MersenneTwister(2)
+const rng = MersenneTwister(100)
 
 mutable struct Kalman_Filter
     state::Array
@@ -191,45 +202,11 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     normalize_quaternion!(filter)
 end
 
-function plot(time, x, estimate)
-
-    fig = figure()
-    ax = fig[:add_subplot](111)
-    ax[:plot](time, x[:,5], label=L"$\omega_x$")
-    ax[:plot](time, x[:,6], label=L"$\omega_y$")
-    ax[:plot](time, x[:,7], label=L"$\omega_z$")
-    ax[:plot](time, estimate[:,5], label=L"estimated $\omega_x$")
-    ax[:plot](time, estimate[:,6], label=L"estimated $\omega_y$")
-    ax[:plot](time, estimate[:,7], label=L"estimated $\omega_z$")
-    ax[:set_xlim]([0, last(time)])
-    ax[:set_xlabel]("time [sec]")
-    ax[:set_ylabel](L"$\omega$ [rad/s]")
-    legend(loc = "best", fontsize=15)
-    # PyPlot.plt[:show]()
-    # PyPlot.plt[:savefig]("ω.pgf")
-
-
-    fig = figure()
-    ax = fig[:add_subplot](111)
-    ax[:plot](time, x[:,1], label=L"$q_0$")
-    ax[:plot](time, x[:,2], label=L"$q_1$")
-    ax[:plot](time, x[:,3], label=L"$q_2$")
-    ax[:plot](time, x[:,4], label=L"$q_3$")
-    ax[:plot](time, estimate[:,1], label=L"estimated $q_0$")
-    ax[:plot](time, estimate[:,2], label=L"estimated $q_1$")
-    ax[:plot](time, estimate[:,3], label=L"estimated $q_2$")
-    ax[:plot](time, estimate[:,4], label=L"estimated $q_3$")
-    ax[:set_xlim]([0, last(time)])
-    ax[:set_xlabel]("time [sec]")
-    ax[:set_ylabel]("Quaternion")
-    legend(loc = "best", fontsize=15)
-    PyPlot.plt[:show]()
-    # PyPlot.plt[:savefig]("quaternion.pgf")
-end
 
 function main()
     true_value = Array{Float64, 2}(STEPNUM+1,7)
     estimated_value = Array{Float64, 2}(STEPNUM+1,7)
+    estimated_variance = Array{Float64,3}(STEPNUM+1,7,7)
     # initial condition
     true_value[1, 1:4] = Quaternion_ini
     true_value[1, 5:7] = ω_b
@@ -239,22 +216,78 @@ function main()
     estimated_value[1, 5:7] += ω_b
     kalman = Kalman_Filter(estimated_value[1,:],P_ini)
     time = zeros(STEPNUM+1)
-    @inbounds for i in 1:STEPNUM
+    for i in 1:STEPNUM
         time[i+1] = i * STEP
         true_value[i+1, :] = true_value[i, :] +
                     runge_kutta(x -> differential_eq(x, 1),true_value[i,:], STEP)
-
         predict(kalman)
-
         if  i % OBSERVE_STEP == OBSERVE_STEP-1
             #observation and update
-            index = rand(1:3)
+            #index = rand(1:3)
+            index = 3
             dcm = make_dcm(true_value[i+1,:],1,index)
             update(kalman, dcm, index)
         end
         estimated_value[i+1, :] = kalman.state
+        estimated_variance[i+1, :, :] = kalman.variance
     end
-    plot(time, true_value,estimated_value)
+    plot(time, true_value,estimated_value,estimated_variance)
 end
 
-@time main()
+
+
+function plot(time, x, estimate,variance)
+
+    for i in 5:7
+        fig = figure()
+        ax = fig[:add_subplot](2,1,1)
+        ax[:plot](time, x[:,i], label=L"true")
+        ax[:plot](time, estimate[:,i], label=L"estimated")
+        ax[:set_xlim]([0, last(time)])
+        ax[:set_xlabel]("time [sec]")
+        i==5&&ax[:set_ylabel](L"$\omega_x$ [rad/s]")
+        i==6&&ax[:set_ylabel](L"$\omega_y$ [rad/s]")
+        i==7&&ax[:set_ylabel](L"$\omega_z$ [rad/s]")
+        legend(loc = "right", fontsize=15)
+        ax2 = fig[:add_subplot](2,1,2)
+        ax2[:plot](time, x[:,i]-estimate[:,i],label=L"$\Delta \omega$")
+        ax2[:set_xlim]([0, last(time)])
+        ax2[:set_xlabel]("time [sec]")
+        ax2[:plot](+sqrt.(variance[:,i,i]), label=L"+$\sigma$")
+        ax2[:plot](-sqrt.(variance[:,i,i]), label=L"-$\sigma$")
+        ax2[:set_ylabel](L"$\Delta \omega$ [rad/s]")
+        legend(loc = "right", fontsize=15)
+        #PyPlot.plt[:show]()
+        i==5&&PyPlot.plt[:savefig]("omega_x.pgf")
+        i==6&&PyPlot.plt[:savefig]("omega_y.pgf")
+        i==7&&PyPlot.plt[:savefig]("omega_z.pgf")
+    end
+    
+    for i in 1:4
+        fig = figure()
+        ax = fig[:add_subplot](2,1,1)
+        ax[:plot](time, x[:,i], label=L"true")
+        ax[:plot](time, estimate[:,i], label=L"estimated")
+        ax[:set_xlim]([0, last(time)])
+        ax[:set_xlabel]("time [sec]")
+        i==1&&ax[:set_ylabel](L"$q_1$ ")
+        i==2&&ax[:set_ylabel](L"$q_2$ ")
+        i==3&&ax[:set_ylabel](L"$q_3$ ")
+        i==4&&ax[:set_ylabel](L"$q_4$ ")
+        legend(loc = "right", fontsize=15)
+        ax2 = fig[:add_subplot](2,1,2)
+        ax2[:plot](time, x[:,i]-estimate[:,i], label=L"\Delta q")
+        ax2[:plot](time, +sqrt.(variance[:,i,i]), label=L"+$\sigma$")
+        ax2[:plot](time, -sqrt.(variance[:,i,i]), label=L"-$\sigma$")
+        ax2[:set_xlim]([0, last(time)])
+        ax2[:set_xlabel]("time [sec]")
+        legend(loc = "right", fontsize=15)
+        # PyPlot.plt[:show]()
+        i==1&&PyPlot.plt[:savefig]("q_1.pgf")
+        i==2&&PyPlot.plt[:savefig]("q_2.pgf")
+        i==3&&PyPlot.plt[:savefig]("q_3.pgf")
+        i==4&&PyPlot.plt[:savefig]("q_4.pgf")
+    end
+end
+
+main()
