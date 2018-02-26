@@ -31,7 +31,7 @@ const P_ini = [0.01 0 0 0 0 0 0;
                0 0 0 0 0 0.01 0;
                0 0 0 0 0 0 0.01]
 
-const rng = MersenneTwister(100)
+const rng = MersenneTwister(10)
 
 mutable struct Kalman_Filter
     state::Array
@@ -223,8 +223,7 @@ function main()
         predict(kalman)
         if  i % OBSERVE_STEP == OBSERVE_STEP-1
             #observation and update
-            #index = rand(1:3)
-            index = 3
+            index = rand(1:3)
             dcm = make_dcm(true_value[i+1,:],1,index)
             update(kalman, dcm, index)
         end
@@ -253,8 +252,8 @@ function plot(time, x, estimate,variance)
         ax2[:plot](time, x[:,i]-estimate[:,i],label=L"$\Delta \omega$")
         ax2[:set_xlim]([0, last(time)])
         ax2[:set_xlabel]("time [sec]")
-        ax2[:plot](+sqrt.(variance[:,i,i]), label=L"+$\sigma$")
-        ax2[:plot](-sqrt.(variance[:,i,i]), label=L"-$\sigma$")
+        ax2[:plot](time,sqrt.(variance[:,i,i]), label=L"+$\sigma$")
+        ax2[:plot](time,-sqrt.(variance[:,i,i]), label=L"-$\sigma$")
         ax2[:set_ylabel](L"$\Delta \omega$ [rad/s]")
         legend(loc = "right", fontsize=15)
         #PyPlot.plt[:show]()
@@ -262,7 +261,7 @@ function plot(time, x, estimate,variance)
         i==6&&PyPlot.plt[:savefig]("omega_y.pgf")
         i==7&&PyPlot.plt[:savefig]("omega_z.pgf")
     end
-    
+
     for i in 1:4
         fig = figure()
         ax = fig[:add_subplot](2,1,1)
@@ -277,7 +276,7 @@ function plot(time, x, estimate,variance)
         legend(loc = "right", fontsize=15)
         ax2 = fig[:add_subplot](2,1,2)
         ax2[:plot](time, x[:,i]-estimate[:,i], label=L"\Delta q")
-        ax2[:plot](time, +sqrt.(variance[:,i,i]), label=L"+$\sigma$")
+        ax2[:plot](time, sqrt.(variance[:,i,i]), label=L"+$\sigma$")
         ax2[:plot](time, -sqrt.(variance[:,i,i]), label=L"-$\sigma$")
         ax2[:set_xlim]([0, last(time)])
         ax2[:set_xlabel]("time [sec]")
