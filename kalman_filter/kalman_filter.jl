@@ -19,7 +19,7 @@ R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
 P_ini = [0.01^2 0 0 0 0 0 0;0 0.01^2 0 0 0 0 0;0 0 0.01^2 0 0 0 0;0 0 0 0.01^2 0 0 0;
         0 0 0 0 0 0 0.01^2;0 0 0 0 0 0.01^2 0;0 0 0 0 0 0 0.01^2]
 
-rng = MersenneTwister(201)
+rng = MersenneTwister(205)
 
 mutable struct Kalman_Filter
     state::Array
@@ -103,7 +103,7 @@ end
     return [dq0/norm; dq1/norm; dq2/norm; dq3/norm; new_ω_x; new_ω_y; new_ω_z]
 end
 
-function make_A(filter::Kalman_Filter)
+@inbounds function make_A(filter::Kalman_Filter)
     x = filter.state
     q0 = x[1]
     q1 = x[2]
@@ -121,7 +121,7 @@ function make_A(filter::Kalman_Filter)
             0 0 0 0  (Ix-Iy)/Iz * ω_y (Ix-Iy)/Iz * ω_x 0 ]
 end
 
-function make_H(filter::Kalman_Filter, i)
+@inbounds function make_H(filter::Kalman_Filter, i)
     #= H matrix
 
     :param i: index of dcm
