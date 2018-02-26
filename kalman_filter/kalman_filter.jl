@@ -11,15 +11,15 @@ const STEPNUM = 10000
 const STEP = 0.01
 const q_std = 0.01
 const r_std = 0.01
-Quaternion_ini = [1.0; 0.0; 0.0; 0.0]
-ω_b = [0.1; ω_s + 0.1; 0.0]
-B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
-Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
-R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
-P_ini = [0.01^2 0 0 0 0 0 0;0 0.01^2 0 0 0 0 0;0 0 0.01^2 0 0 0 0;0 0 0 0.01^2 0 0 0;
+const Quaternion_ini = [1.0; 0.0; 0.0; 0.0]
+const ω_b = [0.1; ω_s + 0.1; 0.0]
+const B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
+const Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
+const R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
+const P_ini = [0.01^2 0 0 0 0 0 0;0 0.01^2 0 0 0 0 0;0 0 0.01^2 0 0 0 0;0 0 0 0.01^2 0 0 0;
         0 0 0 0 0 0 0.01^2;0 0 0 0 0 0.01^2 0;0 0 0 0 0 0 0.01^2]
 
-rng = MersenneTwister(205)
+const rng = MersenneTwister(450)
 
 mutable struct Kalman_Filter
     state::Array
