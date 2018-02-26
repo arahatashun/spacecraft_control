@@ -166,7 +166,7 @@ end
 function predict(filter::Kalman_Filter)
     A = make_A(filter)
     Φ= expm(A*STEP)
-    Γ = inv(A) * (Φ-1) * B
+    Γ = inv(A) * (Φ-eye(7)) * B
     P = filter.variance
     P = Φ * P*  Φ' + Γ * Q * Γ'
     filter.variance = P
@@ -248,7 +248,7 @@ function main()
 
         if  i % OBSERVE_STEP == OBSERVE_STEP-1
             #observation and update
-            index = 1
+            index = rand(1:3)
             dcm = make_dcm(true_value[i+1,:],1,index)
             update(kalman, dcm, index)
         end
