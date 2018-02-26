@@ -9,8 +9,8 @@ rpm2radpersec(rpm) = rpm *2 * π / 60
 const ω_s = rpm2radpersec(17)
 const STEPNUM = 10000
 const STEP = 0.01
-const q_std = 0.01
-const r_std = 0.01
+const q_std = 0.001
+const r_std = 0.001
 Quaternion_ini = [1.0; 0.0; 0.0; 0.0]
 ω_b = [0.1; ω_s + 0.1; 0.0]
 B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
@@ -19,6 +19,7 @@ R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
 P_ini = [0.01^2 0 0 0 0 0 0;0 0.01^2 0 0 0 0 0;0 0 0.01^2 0 0 0 0;0 0 0 0.01^2 0 0 0;
         0 0 0 0 0 0 0.01^2;0 0 0 0 0 0.01^2 0;0 0 0 0 0 0 0.01^2]
 
+rng = MersenneTwister(7)
 mutable struct Kalman_Filter
     state::Array
     variance::Array
@@ -32,8 +33,8 @@ function rand_normal(μ, σ)
     if σ <= 0.0
         error("standard deviation must be positive")
     end
-    u1 = rand()
-    u2 = rand()
+    u1 = rand(rng)
+    u2 = rand(rng)
     r = sqrt( -2.0*log(u1) )
     θ = 2.0*π*u2
     return μ + σ*r*sin(θ)
@@ -180,7 +181,7 @@ function plot(time, x, estimate)
     ax[:plot](time, estimate[:,7], label=L"estimated $\omega_z$")
     ax[:set_xlim]([0, last(time)])
     ax[:set_xlabel]("time [sec]")
-    ax[:set_ylabel](L"$\ω$ [rad/s]")
+    ax[:set_ylabel](L"$\omega$ [rad/s]")
     legend(loc = "best", fontsize=15)
     # PyPlot.plt[:show]()
     # PyPlot.plt[:savefig]("ω.pgf")
