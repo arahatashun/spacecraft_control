@@ -8,7 +8,7 @@ const Iz = 2.0
 const OBSERVE_STEP =10
 rpm2radpersec(rpm) = rpm *2 * π / 60
 const ω_s = rpm2radpersec(17)
-const STEPNUM = 100
+const STEPNUM = 5000
 const STEP = 0.01
 const q_std = 0.01
 const r_std = 0.01
@@ -17,8 +17,8 @@ const ω_b = [0.1; ω_s + 0.1; 0.0]
 const B = [0 0 0;0 0 0;0 0 0;0 0 0;1/Ix 0 0;0 1/Iy 0;0 0 1/Iz]
 const Q = [q_std^2 0 0;0 q_std^2 0;0 0 q_std^2]
 const R = [r_std^2 0 0;0 r_std^2 0;0 0 r_std^2]
-const P_ini = [0.01 0 0 0 0 0 0;0 0.01 0 0 0 0 0;0 0 0.01 0 0 0 0;0 0 0 0.01^ 0 0 0;
-        0 0 0 0 0 0 0.01;0 0 0 0 0 0.01 0;0 0 0 0 0 0 0.01]
+const P_ini = [0.01 0 0 0 0 0 0;0 0.01 0 0 0 0 0;0 0 0.01 0 0 0 0;0 0 0 0.01 0 0 0;
+        0 0 0 0 0.01 0 0;0 0 0 0 0 0.01 0;0 0 0 0 0 0 0.01]
 
 const rng = MersenneTwister(2)
 
@@ -135,17 +135,19 @@ end
     q2 = filter.state[3]
     q3 = filter.state[4]
     if i == 1
-        return [2q0 2q1 -2q2 -2q3 0 0 0;
-                2q3 2q2 2q1 2q0 0 0 0;
-                -2q2 2q3 -2q0 2q1 0 0 0]
+        return [2*q0 2*q1 -2*q2 -2*q3 0 0 0;
+                2*q3 2*q2 2*q1 2*q0 0 0 0;
+                -2*q2 2*q3 -2*q0 2*q1 0 0 0]
     elseif i == 2
-        return[-2q3 2q2 2q1 -2q0 0 0 0;
-                2q0 -2q1 2q2 -2q3 0 0 0;
-                2q1 2q0 2q3 2q2 0 0 0]
+        return[-2*q3 2*q2 2*q1 -2*q0 0 0 0;
+                2*q0 -2*q1 2*q2 -2*q3 0 0 0;
+                2*q1 2*q0 2*q3 2*q2 0 0 0]
     elseif i == 3
-        return [2q2 2q3 2q0 2q1 0 0 0;
-                -2q1 -2q0 2q3 2q2 0 0 0;
-                2q0 -2q1 -2q2 2q3  0 0 0]
+        return [2*q2 2*q3 2*q0 2*q1 0 0 0;
+                -2*q1 -2*q0 2*q3 2*q2 0 0 0;
+                2*q0 -2*q1 -2*q2 2*q3  0 0 0]
+    else
+        println("Index Error")
     end
 end
 
@@ -180,20 +182,17 @@ function update(filter::Kalman_Filter, dcm, index::Int)
     M = filter.variance
     H = make_H(filter, index)
     P = M - M * H' * inv(H * M * H' + R) * H * M
-    #=println("P",P)
-    println("H", H)
-    println("Inv", inv(R))
-    =#
     K = P * H' * inv(R)
-    #println("K",K)
     dcm_estimated = make_dcm(filter.state, 0,index)
     z = dcm - dcm_estimated
-    #println("dcm_t",dcm)
-    #println("dcm_est",dcm_estimated)
+    println("dcm_t",dcm)
+    println("dcm_est",dcm_estimated)
     x̂ = K * z
     filter.variance = P
     filter.state += x̂
     normalize_quaternion!(filter)
+    println("index",index)
+    println("dcm_unti",make_dcm(filter.state, 0, index))
 end
 
 function plot(time, x, estimate)
@@ -253,7 +252,7 @@ function main()
 
         if  i % OBSERVE_STEP == OBSERVE_STEP-1
             #observation and update
-            index = rand(rng, 1:3)
+            index = 1
             dcm = make_dcm(true_value[i+1,:],1,index)
             #=println("index",index)
             println("kalman",kalman.state)
